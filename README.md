@@ -21,16 +21,9 @@ https://raw.githubusercontent.com/yayakotiya-design/OmniToolbox.TreeHouseOnline/
 
 模块接口为 **API 1**。只需 Omni 提供的公共依赖，无需另装 DR、TreeTools、OmenTools 或 KamiToolKit。
 
-## 功能
+## 模块列表
 
-- 按格选择种子和土壤，保存及分享 4 / 6 / 8 格杂交布局。
-- 管理多个园圃、布局绑定和园圃昵称。
-- 种植、收获、护理与施肥操作。
-- 作物识别、操作时间记录和到期提醒。
-- GLW1 布局分享码导入与导出。
-
-启用后可使用 `/omni KotiyaGarden open` 打开工作台。
-
+- **园圃工作台**  — 按格选择种子与土壤，保存杂交布局；支持多园圃管理、护理施肥、作物识别与到期提醒。需要开启自动跳过对话。
 
 ## 许可与参考
 
