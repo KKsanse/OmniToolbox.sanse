@@ -33,5 +33,7 @@ public sealed class GardenSeedClipboard
         cell.SeedId=SeedId;return true;
     }
     public static List<uint> ConfiguredSeeds(IEnumerable<GardenPreset> presets)=>
-        presets.SelectMany(p=>p.Cells).Select(c=>c.SeedId).Where(id=>id!=0).Distinct().ToList();
+        presets.Where(p=>p!=null).SelectMany(p=>p.Cells??[]).Where(c=>c!=null).Select(c=>c.SeedId).Where(id=>id!=0).Distinct().ToList();
+    public static uint[] CandidateSeeds(GardenPreset selected,IEnumerable<GardenPreset> presets)=>
+        ConfiguredSeeds(new[]{selected}.Concat(presets.Where(p=>p!=selected))).Take(4).Concat(Enumerable.Repeat(0u,4)).Take(4).ToArray();
 }

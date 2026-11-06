@@ -25,14 +25,15 @@ public sealed class GardenUi
     private IReadOnlyList<int> RecordSlots=>Bed?.NativeSlots is {Count:>0} slots?slots:Binding?.NativeSlots is {Count:>0} saved?saved:Enumerable.Range(0,Bed?.Slots??8).ToArray();
     private int shareDrawFrame=-1;
     private string regionFilter="";
-    private string bedNameEdit="",editingBedKey="";
+    private ulong houseFilter;
+    private string bedNameEdit="",editingBedKey="",deleteBedKey="";
     private readonly GardenSeedClipboard clipboard=new();
     private GardenUiData data=null!;
     private Action<GardenUiCommand> command=null!;
     private float S=>Math.Max(.75f,data.Scale);
     private GardenBedView? Bed=>data.Beds.FirstOrDefault(b=>b.GroupKey==SelectedGroup&&b.HouseId==SelectedHouse);
-    private IEnumerable<GardenBedView> VisibleBeds=>data.Beds.Where(b=>regionFilter.Length==0||RegionOf(b)==regionFilter);
-    private static string RegionOf(GardenBedView bed)=>string.IsNullOrWhiteSpace(bed.Region)?L("Text97EEED321F5B"):bed.Region;
+    private IEnumerable<GardenBedView> VisibleBeds=>GardenGrouping.Filter(data.Beds,data.Preferences.GroupByHouse,regionFilter,houseFilter);
+    private static string RegionOf(GardenBedView bed)=>GardenGrouping.RegionOf(bed);
     private static string BedLabel(GardenBedView bed)=>string.IsNullOrWhiteSpace(bed.Address)?bed.Name:bed.Name+" · "+bed.Address;
     private GardenBinding? Binding=>data.Bindings.FirstOrDefault(b=>b.GroupKey==SelectedGroup&&b.HouseId==SelectedHouse);
     private GardenPreset? Preset=>data.Layouts.FirstOrDefault(p=>p.Id==data.SelectedLayoutId);
@@ -47,7 +48,7 @@ public sealed class GardenUi
         if(Bed==null&&data.Beds.Count>0)SelectBed(data.Beds[0]);
         ImGui.PushID("GardenLayoutWorkV2");
         try{
-            ImGui.TextUnformatted(L("Text8617B0875973"));ImGui.SameLine();ImGui.TextDisabled(data.Busy?L("Text8F38FD93B5A0"):L("TextB073DB9C0BD6"));
+            ImGui.TextUnformatted(L("Text970C506868E3"));ImGui.SameLine();ImGui.TextDisabled(data.Busy?L("Text8F38FD93B5A0"):L("TextB073DB9C0BD6"));
             if(ImGui.Button(Overview?L("TextF6F58196C9DF"):L("Text103FC1ECAA72")))Overview=!Overview;
             ImGui.SameLine();if(ImGui.Button(L("TextA1C82BEE001D")))Send(GardenUiCommandKind.Refresh);
             ImGui.SameLine();using(new Disabled(!data.Busy))if(ImGui.Button(L("Text6687AC8617E4")))Send(GardenUiCommandKind.Stop);
@@ -62,12 +63,29 @@ public sealed class GardenUi
     }
     private void DrawRegionPicker()
     {
-        var regions=data.Beds.Select(RegionOf).Distinct().Order().ToList();
-        if(regionFilter.Length>0&&!regions.Contains(regionFilter))regionFilter="";
-        if(BeginBoundedCombo(L("Text0343BE98DB6E"),regionFilter.Length==0?L("TextF6C02CD10EDC"):regionFilter,250*S)){
-            if(ImGui.Selectable(L("TextF6C02CD10EDC"),regionFilter.Length==0))regionFilter="";
-            foreach(string region in regions)if(ImGui.Selectable(region,regionFilter==region))regionFilter=region;
-            ImGui.EndCombo();
+        ImGui.TextDisabled(L("TextCE5DB3DBEA01"));ImGui.SameLine();
+        if(ImGui.RadioButton(L("Text09D51EF2311F"),!data.Preferences.GroupByHouse)){data.Preferences.GroupByHouse=false;Save();}
+        ImGui.SameLine();if(ImGui.RadioButton(L("Text5983AFD4D8B4"),data.Preferences.GroupByHouse)){data.Preferences.GroupByHouse=true;Save();}
+        if(data.Preferences.GroupByHouse){
+            var houses=GardenGrouping.Houses(data.Beds);
+            if(houseFilter!=0&&!houses.Any(h=>h.HouseId==houseFilter))houseFilter=0;
+            string preview=houses.FirstOrDefault(h=>h.HouseId==houseFilter)?.Label??L("Text49A9DB457E39");
+            if(BeginBoundedCombo(L("TextA8D4AB6781D4"),preview,360*S)){
+                if(ImGui.Selectable(L("Text49A9DB457E39"),houseFilter==0))houseFilter=0;
+                foreach(var house in houses){
+                    ImGui.PushID(house.HouseId.ToString());if(ImGui.Selectable(house.Label,house.HouseId==houseFilter))houseFilter=house.HouseId;
+                    if(ImGui.IsItemHovered())ImGui.SetTooltip(house.Label);ImGui.PopID();
+                }
+                ImGui.EndCombo();
+            }
+        }else{
+            var regions=data.Beds.Select(RegionOf).Distinct().Order().ToList();
+            if(regionFilter.Length>0&&!regions.Contains(regionFilter))regionFilter="";
+            if(BeginBoundedCombo(L("Text0343BE98DB6E"),regionFilter.Length==0?L("TextF6C02CD10EDC"):regionFilter,250*S)){
+                if(ImGui.Selectable(L("TextF6C02CD10EDC"),regionFilter.Length==0))regionFilter="";
+                foreach(string region in regions)if(ImGui.Selectable(region,regionFilter==region))regionFilter=region;
+                ImGui.EndCombo();
+            }
         }
         var visible=VisibleBeds.ToList();
         if(Bed==null||!visible.Contains(Bed)){
@@ -98,26 +116,15 @@ public sealed class GardenUi
     {
         ImGui.TextDisabled(F("Text0836BB6E2FBE", data.Bindings.Count));
         if(data.Beds.Count==0){ImGui.Spacing();ImGui.TextWrapped(L("Text2040C3417A5C"));}
-        float desiredHeight=Math.Clamp(VisibleBeds.Count()*150*S+16*S,180*S,430*S);
+        float desiredHeight=Math.Clamp((VisibleBeds.Count()*185+(data.Preferences.GroupByHouse?GardenGrouping.Houses(VisibleBeds).Count*50:0))*S+16*S,180*S,430*S);
         float bodyHeight=Math.Min(Math.Max(180*S,ImGui.GetContentRegionAvail().Y-110*S),desiredHeight);
         ImGui.BeginChild("GardenOverview",new(0,bodyHeight),true);
-        foreach(var b in VisibleBeds){
-            ImGui.PushID($"{b.HouseId}-{b.GroupKey}");
-            var binding=data.Bindings.FirstOrDefault(x=>x.HouseId==b.HouseId&&x.GroupKey==b.GroupKey);
-            var preset=data.Layouts.FirstOrDefault(p=>p.Id==binding?.LayoutId);
-            var rows=data.Records.Where(r=>r.HouseId==b.HouseId&&r.GroupKey==b.GroupKey).ToList();
-            ImGui.TextWrapped(BedLabel(b));ImGui.TextDisabled(b.Nearby?F("Text1327527E9B22", b.Slots):L("Text55E63C9D2A06"));
-            ImGui.TextUnformatted(L("Text7889BE2CF966")+(preset?.Name??L("TextE026C6693DC5")));
-            ImGui.TextDisabled(F("Text50924E4237E2", Time(rows.Where(r=>r.Active).Select(r=>r.PlantedAt).Min()), Time(rows.Where(r=>r.Active).Select(r=>r.CaredAt).Min())));
-            ImGui.TextUnformatted(L("Text071FBCC539B1")+DueText(rows,binding?.Reminders,GardenAction.Care)+L("Text597DBF065A28")+DueText(rows,binding?.Reminders,GardenAction.Fertilize));
-            if(ImGui.Button(L("Text0677F30054B1"))){SelectBed(b);Overview=false;RequestedTab=L("TextC9E0F3954B5C");}
-            ImGui.SameLine();if(ImGui.Button(L("Text0DBF5C72C69C"))){SelectBed(b);Overview=false;RequestedTab=L("Text0DBF5C72C69C");}
-            using(new Disabled(data.Busy||!b.Nearby)){
-                ImGui.SameLine();if(ImGui.Button(L("Text69CA8500A419")))command(new(GardenUiCommandKind.Care,b.HouseId,b.GroupKey));
-                ImGui.SameLine();if(ImGui.Button(L("TextDDAE47CD1786")))command(new(GardenUiCommandKind.Fertilize,b.HouseId,b.GroupKey));
+        if(data.Preferences.GroupByHouse){
+            foreach(var house in GardenGrouping.Houses(VisibleBeds)){
+                ImGui.TextWrapped(house.Label);ImGui.TextDisabled(F("TextF0181DAF9737", house.Beds.Count));ImGui.Separator();
+                foreach(var bed in house.Beds.ToList())DrawOverviewBed(bed);
             }
-            ImGui.Separator();ImGui.PopID();
-        }
+        }else foreach(var bed in VisibleBeds.ToList())DrawOverviewBed(bed);
         ImGui.EndChild();
         if(ImGui.Button(L("Text000CF763ECE4"))){Overview=false;RequestedTab=L("TextC9E0F3954B5C");}
         using(new Disabled(data.Busy)){
@@ -129,10 +136,29 @@ public sealed class GardenUi
         }
         ImGui.TextDisabled(L("Text6D5C8CF2837A"));
     }
+    private void DrawOverviewBed(GardenBedView b)
+    {
+        ImGui.PushID($"{b.HouseId}-{b.GroupKey}");
+        var binding=data.Bindings.FirstOrDefault(x=>x.HouseId==b.HouseId&&x.GroupKey==b.GroupKey);
+        var preset=data.Layouts.FirstOrDefault(p=>p.Id==binding?.LayoutId);
+        var rows=data.Records.Where(r=>r.HouseId==b.HouseId&&r.GroupKey==b.GroupKey).ToList();
+        ImGui.TextWrapped(BedLabel(b));ImGui.TextDisabled(b.Nearby?F("Text1327527E9B22", b.Slots):L("Text55E63C9D2A06"));
+        ImGui.TextUnformatted(L("Text7889BE2CF966")+(preset?.Name??L("TextE026C6693DC5")));
+        ImGui.TextDisabled(F("Text50924E4237E2", Time(rows.Where(r=>r.Active).Select(r=>r.PlantedAt).Min()), Time(rows.Where(r=>r.Active).Select(r=>r.CaredAt).Min())));
+        ImGui.TextUnformatted(L("Text071FBCC539B1")+DueText(rows,binding?.Reminders,GardenAction.Care)+L("Text597DBF065A28")+DueText(rows,binding?.Reminders,GardenAction.Fertilize));
+        if(ImGui.Button(L("Text0677F30054B1"))){SelectBed(b);Overview=false;RequestedTab=L("TextC9E0F3954B5C");}
+        ImGui.SameLine();if(ImGui.Button(L("Text0DBF5C72C69C"))){SelectBed(b);Overview=false;RequestedTab=L("Text0DBF5C72C69C");}
+        using(new Disabled(data.Busy||!b.Nearby)){
+            ImGui.SameLine();if(ImGui.Button(L("Text69CA8500A419")))command(new(GardenUiCommandKind.Care,b.HouseId,b.GroupKey));
+            ImGui.SameLine();if(ImGui.Button(L("TextDDAE47CD1786")))command(new(GardenUiCommandKind.Fertilize,b.HouseId,b.GroupKey));
+        }
+        DrawDeleteBed(b);
+        ImGui.Separator();ImGui.PopID();
+    }
     private void DrawWorkbench()
     {
         if(BeginBoundedCombo(L("Text9F8B0DA2F890"),Bed==null?L("Text1182C5454F11"):BedLabel(Bed),250*S)){
-            foreach(var b in VisibleBeds){ImGui.PushID($"{b.HouseId}-{b.GroupKey}");if(ImGui.Selectable(BedLabel(b),b==Bed))SelectBed(b);if(ImGui.IsItemHovered())ImGui.SetTooltip(BedLabel(b));ImGui.PopID();}
+            foreach(var b in VisibleBeds.ToList()){ImGui.PushID($"{b.HouseId}-{b.GroupKey}");if(ImGui.Selectable(BedLabel(b),b==Bed))SelectBed(b);if(ImGui.IsItemHovered())ImGui.SetTooltip(BedLabel(b));ImGui.PopID();}
             ImGui.EndCombo();
         }
         if(Bed is {} selectedBed)ImGui.TextWrapped(BedLabel(selectedBed));
@@ -150,6 +176,7 @@ public sealed class GardenUi
                 }catch(ArgumentException e){localNotice=e.Message;}
             }
         }
+        if(Bed is {} deletableBed)DrawDeleteBed(deletableBed);
         if(ImGui.BeginTabBar("GardenWorkbenchTabs")){
             Tab(L("TextC9E0F3954B5C"),DrawLayout);Tab(L("Text0DBF5C72C69C"),DrawRecords);Tab(L("Text73201667202E"),DrawReminders);Tab(L("Text17337902D692"),DrawOperations);
             ImGui.EndTabBar();
@@ -166,6 +193,22 @@ public sealed class GardenUi
             ImGui.SameLine();if(ImGui.Button(L("Text883FD78F653E")))Send(GardenUiCommandKind.Fertilize);
             ImGui.SameLine();if(ImGui.Button(L("Text0C5948A18120")))Send(GardenUiCommandKind.Harvest);
         }
+    }
+    private void DrawDeleteBed(GardenBedView bed)
+    {
+        string key=GardenNames.Key(bed.HouseId,bed.GroupKey);ImGui.PushID("deleteBed-"+key);
+        using(new Disabled(data.Busy)){
+            if(ImGui.Button(L("Text1A3B3AA31F3F")))deleteBedKey=deleteBedKey==key?"":key;
+            if(deleteBedKey==key){
+                ImGui.TextWrapped(L("Text5B64DEB3D98D"));
+                if(ImGui.Button(L("TextA3EA3C17B401"))){
+                    command(new(GardenUiCommandKind.RemoveGarden,bed.HouseId,bed.GroupKey));deleteBedKey="";
+                    if(SelectedHouse==bed.HouseId&&SelectedGroup==bed.GroupKey){SelectedHouse=0;SelectedGroup=0;}
+                }
+                ImGui.SameLine();if(ImGui.Button(L("Text2CD0F3BE8738")))deleteBedKey="";
+            }
+        }
+        ImGui.PopID();
     }
     private void Tab(string name,Action draw)
     {
@@ -224,7 +267,10 @@ public sealed class GardenUi
         float width=Math.Max(65*S,(ImGui.GetContentRegionAvail().X-(columns-1)*8*S)/columns);
         for(int r=0;r<rows;r++)for(int c=0;c<columns;c++){
             if(c>0)ImGui.SameLine(0,6*S);int i=ring[r*columns+c];
-            if(i<0){ImGui.BeginGroup();ImGui.Dummy(new(width,17*S));ImGui.TextDisabled(F("TextF4CE9FB84387", preset.Cells.Count));ImGui.Dummy(new(width,20*S));ImGui.EndGroup();continue;}
+            if(i<0){
+                var origin=ImGui.GetCursorScreenPos();var cellSize=new Vector2(width,64*S);string label=F("Text8F96EA05108C", preset.Cells.Count);var textSize=ImGui.CalcTextSize(label);
+                ImGui.Dummy(cellSize);ImGui.GetWindowDrawList().AddText(origin+(cellSize-textSize)/2,ImGui.GetColorU32(ImGuiCol.TextDisabled),label);continue;
+            }
             var cell=preset.Cells[i];bool selected=SelectedCell==i;
             if(selected)ImGui.PushStyleColor(ImGuiCol.Button,ImGui.GetStyle().Colors[(int)ImGuiCol.ButtonActive]);
             string name=Item(cell.SeedId);string shortName=name.Length>9?name[..8]+"…":name;
@@ -276,9 +322,15 @@ public sealed class GardenUi
         uint seed=cell.SeedId;if(ItemPicker("##seed",L("Text5E20FC223736"),data.Seeds,ref seed,ref seedSearch,true)){cell.SeedId=seed;Save();}
         using(new Disabled(cell.SeedId==0))if(ImGui.Button(L("TextC6AE39AB184A"))){clipboard.Copy(cell);localNotice=L("TextB42D66998A4D")+Item(clipboard.SeedId);}
         ImGui.SameLine();using(new Disabled(clipboard.SeedId==0))if(ImGui.Button(L("Text42651CE97A5D"))){clipboard.Paste(cell);Save();}
-        ImGui.TextDisabled(L("TextC8C545CA59AE"));
-        int n=0;foreach(uint id in GardenSeedClipboard.ConfiguredSeeds(data.Layouts)){
-            if(n++%2!=0)ImGui.SameLine();if(ImGui.Button(Item(id)+"##reuse"+id)){cell.SeedId=id;Save();}
+        ImGui.TextDisabled(L("Text6D20732C4232"));
+        var candidates=GardenSeedClipboard.CandidateSeeds(p,data.Layouts);
+        float candidateWidth=Math.Max(1,(ImGui.GetContentRegionAvail().X-ImGui.GetStyle().ItemSpacing.X)/2);
+        for(int n=0;n<4;n++){
+            uint id=candidates[n];if(n%2!=0)ImGui.SameLine();string full=id==0?L("TextBE1A6F5EBF75"):Item(id);string label=full;
+            while(label.Length>1&&ImGui.CalcTextSize(label+(label==full?"":"…")).X>Math.Max(1,candidateWidth-2*ImGui.GetStyle().FramePadding.X))label=label[..^1];
+            if(label!=full)label+="…";
+            using(new Disabled(id==0))if(ImGui.Button(label+"##candidate"+n,new(candidateWidth,ImGui.GetFrameHeight()))){cell.SeedId=id;Save();}
+            if(id!=0&&ImGui.IsItemHovered())ImGui.SetTooltip(full);
         }
         uint soil=p.DefaultSoilId;if(ItemPicker("##soil",L("Text02F1A371FB49"),data.Soils,ref soil,ref soilSearch)){p.DefaultSoilId=soil;Save();}
         uint overrideSoil=cell.SoilId;if(ItemPicker("##overrideSoil",L("Text99BD299E6406"),data.Soils,ref overrideSoil,ref cellSoilSearch)){cell.SoilId=overrideSoil;Save();}
@@ -302,7 +354,7 @@ public sealed class GardenUi
                 ImGui.TableNextColumn();ImGui.TextWrapped(Time(record?.PlantedAt));ImGui.TableNextColumn();ImGui.TextWrapped(Time(record?.CaredAt));ImGui.TableNextColumn();ImGui.TextWrapped(Time(record?.FertilizedAt));
             }ImGui.EndTable();
         }
-        ImGui.TextWrapped(L("TextAA7D07798009"));
+        ImGui.TextWrapped(L("TextB5D74A3CD691"));
         ImGui.Separator();ImGui.TextUnformatted(F("Text8853B77260FF", selectedRecordSlot+1));
         string[] actions={L("TextCFA6207EC025"),L("Text69CA8500A419"),L("TextDDAE47CD1786"),L("TextEA079BC32197")};
         if(BeginBoundedCombo(L("TextED31FBB483EE"),actions[manualAction],150*S)){
@@ -331,7 +383,7 @@ public sealed class GardenUi
         bool quiet=prefs.QuietInCombat;if(ImGui.Checkbox(L("TextE7FA65456AC4"),ref quiet)){prefs.QuietInCombat=quiet;Save();}
         bool compact=prefs.CompactHome;if(ImGui.Checkbox(L("Text434FF978E57F"),ref compact)){prefs.CompactHome=compact;Save();}
         bool advance=prefs.AdvanceCareTalk;if(ImGui.Checkbox(L("Text829C10C8BFCF"),ref advance)){prefs.AdvanceCareTalk=advance;Save();}
-        if(ImGui.IsItemHovered())ImGui.SetTooltip(L("Text5B01BEEF504E"));
+        if(ImGui.IsItemHovered())ImGui.SetTooltip(L("Text22A10DF5A50C"));
         uint fertilizer=data.FertilizerId;if(ItemPicker("##fertilizer",L("TextFB451A39AF12"),data.Fertilizers,ref fertilizer,ref fertilizerSearch)){data.FertilizerId=fertilizer;Save();}
         ImGui.TextDisabled(L("TextB4AF1F2CABF1"));
         ImGui.Separator();var b=Binding;if(b==null){ImGui.TextWrapped(L("Text652411AF1B67"));return;}

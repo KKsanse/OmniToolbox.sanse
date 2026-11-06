@@ -43,6 +43,7 @@ public sealed class GardenPreferences
     public bool SoundReminder { get; set; }
     public bool QuietInCombat { get; set; }=true;
     public bool CompactHome { get; set; }=true;
+    public bool GroupByHouse { get; set; }
 }
 public sealed class GardenOperation
 {

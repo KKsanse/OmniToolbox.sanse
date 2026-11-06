@@ -48,7 +48,7 @@ public unsafe partial class KotiyaGarden
         foreach(var bed in beds){
             int expected=GardenSizeAt(bed.Position);
             if(expected==0||bed.Targets.Count!=expected||bed.Targets.Select(t=>t.NativeSlot).Distinct().Count()!=expected)throw new InvalidOperationException(L("Text784265790450"));
-            config.GardenSlots[GardenLayout.GardenNames.Key(house,bed.Group)]=bed.Targets.Select(t=>t.NativeSlot).ToList();
+
         }
         return beds;
     }

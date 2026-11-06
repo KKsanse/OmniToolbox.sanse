@@ -6,7 +6,7 @@ namespace GardenLayout;
 
 public sealed record GardenItemOption(uint Id,string Name);
 public sealed record GardenBedView(ulong HouseId,uint GroupKey,string Name,bool Nearby,int Slots,string Region="",string Address="",IReadOnlyList<int>? NativeSlots=null);
-public enum GardenUiCommandKind { Save, Refresh, Bind, Unbind, Calibrate, Preview, Plant, Stop, Care, Fertilize, Harvest, ManualRecord }
+public enum GardenUiCommandKind { Save, Refresh, Bind, Unbind, Calibrate, Preview, Plant, Stop, Care, Fertilize, Harvest, ManualRecord, RemoveGarden }
 public sealed record GardenUiCommand(GardenUiCommandKind Kind,ulong HouseId=0,uint? Group=null,string LayoutId="",int Cell=0,GardenAction Action=GardenAction.Plant,DateTimeOffset? At=null);
 public sealed class GardenUiData
 {

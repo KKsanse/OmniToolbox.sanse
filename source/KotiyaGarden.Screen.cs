@@ -52,6 +52,7 @@ public unsafe partial class KotiyaGarden
             if(recovery.Repaired>0)layoutRecoveryNotice=F("Text9C59580BDE9A", recovery.Repaired);
             if(recovery.Unresolved>0)layoutRecoveryNotice+=F("Text6CBBFCB945BB", recovery.Unresolved);
         }catch(Exception e){layoutRecoveryNotice=L("TextD19C08D4C752")+e.Message;}
+        GardenCatalog.RememberBindings(config.GardenNames,config.GardenSlots,config.GardenBindings,config.Layouts);
         foreach(var b in config.GardenBindings)b.Reminders??=new();
         screenData=new(){BedNames=config.GardenNames,Layouts=config.Layouts,Bindings=config.GardenBindings,Records=config.Records,Operations=config.Operations,Preferences=config.Preferences,SelectedLayoutId=config.SelectedLayoutID,
             Seeds=Sheets.Seeds.Values.Select(x=>new GardenItemOption(x.RowId,x.Name.ToString())).OrderBy(x=>x.Name).ToList(),
@@ -78,11 +79,12 @@ public unsafe partial class KotiyaGarden
     {
         if(!screenLoaded)return;
         screenData.Busy=TaskHelper.IsBusy;screenData.Notice=layoutNotice;screenData.Scale=GlobalUIScale;screenData.Now=DateTimeOffset.UtcNow;
+        var housing=HousingManager.Instance();ulong currentHouse=housing!=null&&housing->OutdoorTerritory!=null?(ulong)housing->GetCurrentHouseId():0;
         var rows=new List<GardenBedView>();
         for(int i=0;i<cachedBeds.Count;i++){
             var b=cachedBeds[i];var binding=config.GardenBindings.FirstOrDefault(x=>x.HouseId==b.House&&x.GroupKey==b.Group);
             string name=config.GardenNames.TryGetValue(GardenLayout.GardenNames.Key(b.House,b.Group),out var custom)?custom:string.IsNullOrWhiteSpace(binding?.Name)?F("TextF6B971CCEE5D", i+1):binding.Name;
-            var location=DescribeHouse(b.House);rows.Add(new(b.House,b.Group,name,true,b.Targets.Count,location.Region,location.Address,b.Targets.Select(t=>t.NativeSlot).ToList()));
+            var location=DescribeHouse(b.House);rows.Add(new(b.House,b.Group,name,currentHouse==b.House,b.Targets.Count,location.Region,location.Address,b.Targets.Select(t=>t.NativeSlot).ToList()));
         }
         int savedIndex=0;
         foreach(var binding in config.GardenBindings){
@@ -91,12 +93,24 @@ public unsafe partial class KotiyaGarden
             string name=config.GardenNames.TryGetValue(GardenLayout.GardenNames.Key(binding.HouseId,binding.GroupKey),out var custom)?custom:string.IsNullOrWhiteSpace(binding.Name)?F("TextCB6DA8F5FDF2", savedIndex):binding.Name;
             var slots=SavedSlots(binding.HouseId,binding.GroupKey);var location=DescribeHouse(binding.HouseId);rows.Add(new(binding.HouseId,binding.GroupKey,name,false,slots.Count,location.Region,location.Address,slots));
         }
-        foreach(var entry in config.GardenNames){
-            if(!GardenLayout.GardenNames.TryParseKey(entry.Key,out var house,out var group)||rows.Any(r=>r.HouseId==house&&r.GroupKey==group))continue;
-            var slots=SavedSlots(house,group);var location=DescribeHouse(house);rows.Add(new(house,group,entry.Value,false,slots.Count,location.Region,location.Address,slots));
+        foreach(var entry in GardenCatalog.Saved(config.GardenNames,config.GardenSlots)){
+            if(rows.Any(r=>r.HouseId==entry.HouseId&&r.GroupKey==entry.GroupKey))continue;
+            var slots=SavedSlots(entry.HouseId,entry.GroupKey);var location=DescribeHouse(entry.HouseId);
+            string name=string.IsNullOrWhiteSpace(entry.Name)?F("TextCB6DA8F5FDF2", ++savedIndex):entry.Name;
+            rows.Add(new(entry.HouseId,entry.GroupKey,name,false,slots.Count,location.Region,location.Address,slots));
         }
         screenData.Beds=rows;
         screen.Draw(screenData,ExecuteGardenCommand);
+    }
+    private void RefreshRememberedBeds()
+    {
+        var beds=ReadNearbyBeds();
+        for(int i=0;i<beds.Count;i++){
+            var bed=beds[i];var binding=config.GardenBindings.FirstOrDefault(b=>b.HouseId==bed.House&&b.GroupKey==bed.Group);
+            string fallback=string.IsNullOrWhiteSpace(binding?.Name)?F("TextF6B971CCEE5D", i+1):binding.Name;
+            GardenCatalog.Remember(config.GardenNames,config.GardenSlots,bed.House,bed.Group,bed.Targets.Select(t=>t.NativeSlot),fallback);
+        }
+        cachedBeds=beds;
     }
     private List<int> SavedSlots(ulong house,uint group)
     {
@@ -109,7 +123,7 @@ public unsafe partial class KotiyaGarden
     {
         try{
             if(cmd.Kind==GardenUiCommandKind.Save){config.SelectedLayoutID=screenData.SelectedLayoutId;config.FertilizerSelected=GardenFertilizer.Resolve(screenData.FertilizerId);screenData.FertilizerId=config.FertilizerSelected;SaveLayouts();return;}
-            if(cmd.Kind==GardenUiCommandKind.Refresh){cachedBeds=ReadNearbyBeds();SaveLayouts();layoutNotice=F("Text64A1C6EBE659", cachedBeds.Count);return;}
+            if(cmd.Kind==GardenUiCommandKind.Refresh){RefreshRememberedBeds();SaveLayouts();layoutNotice=F("Text5F0E371F8019", cachedBeds.Count);return;}
             if(cmd.Kind==GardenUiCommandKind.Stop){AbortLayout(L("Text4017C5B03913"));return;}
             if(TaskHelper.IsBusy)return;
             if(cmd.Group.HasValue&&cmd.Kind is GardenUiCommandKind.Plant or GardenUiCommandKind.Preview or GardenUiCommandKind.Care or GardenUiCommandKind.Fertilize or GardenUiCommandKind.Harvest){
@@ -125,6 +139,13 @@ public unsafe partial class KotiyaGarden
                     var binding=config.GardenBindings.FirstOrDefault(b=>b.HouseId==bed.House&&b.GroupKey==bed.Group);
                     if(binding==null){binding=new(){HouseId=bed.House,GroupKey=bed.Group,Name=screenData.Beds.FirstOrDefault(b=>b.HouseId==bed.House&&b.GroupKey==bed.Group)?.Name??L("Text9F8B0DA2F890")};config.GardenBindings.Add(binding);}
                     binding.LayoutId=preset.Id;binding.NativeSlots=bed.Targets.Select(t=>t.NativeSlot).ToList();binding.X=bed.Position.X;binding.Y=bed.Position.Y;binding.Z=bed.Position.Z;SaveLayouts();layoutNotice=L("Text576C57532394");break;
+                }
+                case GardenUiCommandKind.RemoveGarden:{
+                    if(!cmd.Group.HasValue)throw new InvalidOperationException(L("TextD8A9CC937220"));
+                    GardenCatalog.Forget(config.GardenNames,config.GardenSlots,config.GardenBindings,cmd.HouseId,cmd.Group.Value);
+                    cachedBeds.RemoveAll(b=>b.House==cmd.HouseId&&b.Group==cmd.Group.Value);
+                    screenData.Beds.RemoveAll(b=>b.HouseId==cmd.HouseId&&b.GroupKey==cmd.Group.Value);
+                    SaveLayouts();layoutNotice=L("TextB69C1B2EBB0D");break;
                 }
                 case GardenUiCommandKind.Unbind:config.GardenBindings.RemoveAll(b=>b.HouseId==cmd.HouseId&&b.GroupKey==cmd.Group);SaveLayouts();break;
                 case GardenUiCommandKind.Calibrate:{
