@@ -25,3 +25,10 @@ The corresponding source is included in `source/`, with a combined local-module 
 2026-11-04 / KotiyaGarden-Omni-0.1.1: identify known crop names from exact SystemMessage/None growth announcements; resolve crop-to-seed mapping from client GardeningSeed/Item sheets; associate a bounded observation with the current house, object, group and native menu slot; retain existing operation times and unknown planting times. Add persistent crop identity and identification time, distinct identity audit entries, and regression tests. Module descriptions use the user-selected wording. Omni visible titles omit the author suffix; Author remains Kotiya.
 
 2026-11-05 / 1.0 attribution update: current module author/display attribution is Sanse. Existing internal module identifiers, file names and upstream license/authorship records are retained for configuration compatibility. DR declares AutoTalkSkip as a prerequisite; Omni module description asks users to enable automatic dialogue skipping.
+
+2026-11-06 / 1.0.1, Sanse: retain discovered gardens independently of preset bindings through the existing name/slot catalog, migrate recoverable binding-only entries, provide local list deletion with confirmation and preserve layouts/history, limit quick seed candidates to four bounded slots, and center the eight-slot grid caption. Added catalog persistence/legacy/delete regressions and native ImGui interaction and geometry verification. Internal module and state identifiers remain unchanged.
+
+2026-11-06 / 1.0.2, Sanse: add independent region/house browsing modes, persisted classification preference, identity-based house groups with full display addresses, house selection and all-house overview. Preserve original region browsing and operation scoping. Add actual native ImGui radio/dropdown interaction checks and serialization checks.
+
+
+2026-11-07 / slim distribution: this installer omits development files and preview images. Corresponding source and build instructions for 1.0.2 are supplied separately at https://github.com/KKsanse/OmniToolbox.sanse/raw/refs/heads/main/downloads/KotiyaGarden-Omni-1.0.2-Sanse-source.zip . The included module binary is unchanged.
