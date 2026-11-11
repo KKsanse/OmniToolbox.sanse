@@ -1,0 +1,21 @@
+{
+  "SchemaVersion": 1,
+  "Modules": [
+    {
+      "InternalName": "KotiyaGarden",
+      "Author": "Sanse",
+      "RepositoryURL": "https://github.com/KKsanse/OmniToolbox.sanse",
+      "Version": "1.0.2",
+      "ApiVersion": 1,
+      "MinimumOmniVersion": "1.1.8.9",
+      "File": "KotiyaGarden.dll",
+      "Sha256": "333C6C3E9FE8DD0868791D52ABB442217269B8200ED551B9FC91B2E09C7779E2",
+      "Localization": {
+        "Source": {
+          "Title": "园圃工作台",
+          "Description": "按格选择种子与土壤，保存杂交布局；支持多园圃管理、护理施肥、作物识别与到期提醒。需要开启自动跳过对话。"
+        }
+      }
+    }
+  ]
+}

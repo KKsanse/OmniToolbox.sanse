@@ -1,0 +1,86 @@
+{
+  "version": "1.0.2",
+  "date": "2026-11-06",
+  "author": "Sanse",
+  "name": "园圃工作台",
+  "internalName": "KotiyaGarden",
+  "targetHost": {
+    "name": "Omni Toolbox",
+    "sdkVersion": "1.1.8.9"
+  },
+  "builds": {
+    "sourceWarnings": 0,
+    "sourceErrors": 0,
+    "combinedWarnings": 0,
+    "combinedErrors": 0
+  },
+  "checks": {
+    "logicAndBehavior": 309,
+    "catalogAndCandidateAddedChecks": 24,
+    "groupingChecks": 14
+  },
+  "catalog": {
+    "usesExistingNamesAndSlotsConfigKeys": true,
+    "unboundDiscoverySurvivesRestart": true,
+    "legacySlotOnlyGardensShown": true,
+    "legacyBindingOnlyGardensRemainAfterUnbinding": true,
+    "deletionRequiresConfirmation": true,
+    "deletionRemovesSavedNameSlotsBinding": true,
+    "deletionPreservesPresetAndCropHistory": true,
+    "sameGroupOtherHouseUnaffected": true,
+    "manualRefreshCanRediscoverDeletedNearbyGarden": true
+  },
+  "seedCandidates": {
+    "fixedSlots": 4,
+    "activeLayoutFirst": true,
+    "deduplicated": true,
+    "missingSlotsDisabled": true,
+    "completeSearchListPreserved": true,
+    "longLabelsBoundedWithHoverTooltip": true
+  },
+  "grouping": {
+    "modes": [
+      "region",
+      "house"
+    ],
+    "defaultForOldConfig": "region",
+    "houseModePreferencePersisted": true,
+    "groupsByActualHouseIdentity": true,
+    "fullWorldRegionWardPlotAddress": true,
+    "independentFilters": true,
+    "allHousesAndSingleHouseOptions": true,
+    "nativeRadioAndDropdownClicksVerified": true
+  },
+  "nativeUi": {
+    "widths": [
+      940,
+      560
+    ],
+    "scales": [
+      1,
+      1.25
+    ],
+    "gardenSizes": [
+      4,
+      6,
+      8
+    ],
+    "candidateClickVerified": true,
+    "deleteCancelAndConfirmVerified": true,
+    "eightSlotCaptionHorizontalAndVerticalCenterVerified": true,
+    "maxCenterErrorPixels": 0.02,
+    "gameCommands": 0
+  },
+  "runtimeValidation": {
+    "newBuildLoadedInGame": false,
+    "gameResourceConsumedByAgent": false
+  },
+  "sha256": {
+    "KotiyaGarden.dll": "333C6C3E9FE8DD0868791D52ABB442217269B8200ED551B9FC91B2E09C7779E2",
+    "KotiyaGarden.cs": "07A6E4A55447BEC70795C03991656315DE480ACE96878F89391FC9C18CC2CDB9"
+  },
+  "apiVersion": 1,
+  "omniContractLocalizationPersistenceChecks": 648,
+  "chineseLocalizationKeysPerLanguage": 309,
+  "descriptionRequestsAutoTalkSkip": true
+}
