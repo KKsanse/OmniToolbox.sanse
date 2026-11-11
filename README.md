@@ -18,8 +18,6 @@
 https://raw.githubusercontent.com/KKsanse/OmniToolbox.sanse/main/TreeHouseModules.json
 ```
 
-模块接口为 **API 1**。只需 Omni 提供的公共依赖，无需另装 DR、TreeTools、OmenTools 或 KamiToolKit。
-
 ## 模块列表
 
 - **园圃工作台**  — 按格选择种子与土壤，保存杂交布局；支持多园圃管理、护理施肥、作物识别与到期提醒。需要开启自动跳过对话。
